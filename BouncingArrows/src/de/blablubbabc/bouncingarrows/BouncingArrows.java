@@ -108,7 +108,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 		Vector oldVelocity = projectile.getVelocity();
 		double speed = oldVelocity.length();
 
-		Vector direction = targetLocation.toVector().subtract(projectileLocation.toVector()).normalize().multiply(speed / 4);
+		Vector direction = targetLocation.toVector().subtract(projectileLocation.toVector()).normalize().multiply(speed / 3);
 		projectile.setVelocity(oldVelocity.add(direction).normalize().multiply(speed));
 
 		// repeat:
