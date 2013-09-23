@@ -1,5 +1,7 @@
 package de.blablubbabc.bouncingarrows;
 
+import java.lang.reflect.Field;
+
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -190,6 +192,20 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 				if (projectileType == EntityType.ARROW) {
 					// spawn with slight spray:
 					newProjectile = projectile.getWorld().spawnArrow(arrowLocation, arrowVelocity.subtract(mirrorDirection), (float) speed, 4.0F);
+					
+					// make the arrow pickup-able:
+					if (shooter.getType() == EntityType.PLAYER) {
+						Field field;
+						try {
+							Object entityArrow = newProjectile.getClass().getMethod("getHandle").invoke(newProjectile);
+							field = entityArrow.getClass().getDeclaredField("fromPlayer");
+							//field.setAccessible(true);
+							field.set(entityArrow, 1);
+						} catch (Exception e) {
+							System.out.println("[BouncingArrows] Failed to set the arrow pick-able! StackTrace: ");
+							e.printStackTrace();
+						}
+					}
 				} else {
 					// without spray:
 					newProjectile = (Projectile) projectile.getWorld().spawnEntity(arrowLocation, projectile.getType());
