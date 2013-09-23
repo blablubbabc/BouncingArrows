@@ -47,7 +47,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 					Projectile projectileP = (Projectile) projectile;
 					LivingEntity target = findTarget(projectileP);
 					if (target != null) {
-						playEffect(player, projectile);
+						playEffect(projectile);
 						aimAtTarget(projectileP, target);
 					}
 				}
@@ -122,15 +122,15 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 		}, 1L);
 	}
 
-	private void playEffect(final Player player, final Entity entity) {
-		ParticleEffect.HEART.play(player, entity.getLocation(), 0, 0, 0, 1, 10);
+	private void playEffect(final Entity entity) {
+		ParticleEffect.HEART.play(entity.getLocation(), 0, 0, 0, 1, 10);
 		getServer().getScheduler().runTaskLater(this, new Runnable() {
 
 			@Override
 			public void run() {
 				if (entity.isDead() || !entity.isValid() || entity.isOnGround())
 					return;
-				playEffect(player, entity);
+				playEffect(entity);
 			}
 		}, 2L);
 	}
