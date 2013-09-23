@@ -1,0 +1,12 @@
+name: BouncingArrows
+main: de.blablubbabc.bouncingarrows.BouncingArrows
+version: 1.0
+author: blablubbabc
+description: Makes arrows bounce (and snowballs)!
+permissions:
+    bouncingarrows.use:
+        description: The players arrows (and snowballs) will bounce!
+        default: true
+    bouncingarrows.aim:
+        description: The players arrows will auto navigate towards the target!
+        default: op
