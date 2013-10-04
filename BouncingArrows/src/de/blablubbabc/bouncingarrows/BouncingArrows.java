@@ -48,7 +48,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 					LivingEntity target = findTarget(projectileP);
 					if (target != null) {
 						playEffect(projectile);
-						aimAtTarget(projectileP, target);
+						aimAtTarget(projectileP, target, projectileP.getVelocity().length());
 					}
 				}
 			}
@@ -85,7 +85,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 				// check angle to target:
 				Vector toTarget = newTargetLocation.toVector().subtract(projectileVector).normalize();
 				double dotProduct = toTarget.dot(projectileDirection);
-				if (dotProduct > 0.97D && (target == null || dotProduct > minDotProduct)) {
+				if (dotProduct > 0.97D && shooter.hasLineOfSight(living) && (target == null || dotProduct > minDotProduct)) {
 					target = living;
 					minDotProduct = dotProduct;
 				}
@@ -95,7 +95,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 		return target;
 	}
 
-	private void aimAtTarget(final Projectile projectile, final LivingEntity target) {
+	private void aimAtTarget(final Projectile projectile, final LivingEntity target, final double speed) {
 		Location projectileLocation = projectile.getLocation();
 		Location targetLocation = target.getEyeLocation();
 		// validate target:
@@ -106,9 +106,8 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 
 		// move towards target
 		Vector oldVelocity = projectile.getVelocity();
-		double speed = oldVelocity.length();
 
-		Vector direction = targetLocation.toVector().subtract(projectileLocation.toVector()).normalize().multiply(speed / 3);
+		Vector direction = targetLocation.toVector().subtract(projectileLocation.toVector()).normalize().multiply(targetLocation.getY() > projectileLocation.getY() ? speed : speed / 3);
 		projectile.setVelocity(oldVelocity.add(direction).normalize().multiply(speed));
 
 		// repeat:
@@ -117,7 +116,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			@Override
 			public void run() {
 				if (!projectile.isDead() && projectile.isValid() && !projectile.isOnGround() && projectile.getTicksLived() < 600)
-					aimAtTarget(projectile, target);
+					aimAtTarget(projectile, target, speed);
 			}
 		}, 1L);
 	}
