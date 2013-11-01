@@ -18,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.material.TrapDoor;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.BlockIterator;
@@ -151,33 +152,37 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			Location arrowLocation = projectile.getLocation();
 			Block hitBlock = arrowLocation.getBlock();
 
-			if (isSpecialCase(hitBlock))
-				return;
+			BlockFace blockFace = BlockFace.UP;
+			
+			// special cases:
+			if (isWoodenTrigger(hitBlock.getType())) return;
+			if (!isHollowUpDownType(hitBlock)) {
+				BlockIterator blockIterator = new BlockIterator(arrowLocation.getWorld(), arrowLocation.toVector(), arrowVelocity, 0.0D, 3);
 
-			BlockIterator blockIterator = new BlockIterator(arrowLocation.getWorld(), arrowLocation.toVector(), arrowVelocity, 0.0D, 3);
-
-			Block previousBlock = hitBlock;
-			Block nextBlock = blockIterator.next();
-			if (isSpecialCase(nextBlock))
-				return;
-
-			// to make sure, that previousBlock and nextBlock are not the same block
-			while (blockIterator.hasNext() && (nextBlock.getType() == Material.AIR || nextBlock.equals(hitBlock))) {
-				previousBlock = nextBlock;
-				nextBlock = blockIterator.next();
-				if (isSpecialCase(nextBlock))
+				Block previousBlock = hitBlock;
+				Block nextBlock = blockIterator.next();
+				if (isWoodenTrigger(nextBlock.getType()))
 					return;
-			}
 
-			// direction
-			BlockFace blockFace = nextBlock.getFace(previousBlock);
+				// to make sure, that previousBlock and nextBlock are not the same block
+				while (blockIterator.hasNext() && (nextBlock.getType() == Material.AIR || nextBlock.equals(hitBlock))) {
+					previousBlock = nextBlock;
+					nextBlock = blockIterator.next();
+					if (isWoodenTrigger(nextBlock.getType()))
+						return;
+				}
+				
+				//direction
+				blockFace = nextBlock.getFace(previousBlock);
+				
+			}
 
 			if (blockFace != null) {
 				if (blockFace == BlockFace.SELF) {
 					blockFace = BlockFace.UP;
 				}
 
-				if (isSpecialCase(hitBlock.getRelative(blockFace)))
+				if (isWoodenTrigger(hitBlock.getRelative(blockFace).getType()))
 					return;
 
 				Vector mirrorDirection = new Vector(blockFace.getModX(), blockFace.getModY(), blockFace.getModZ());
@@ -220,11 +225,32 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			}
 		}
 	}
-
-	private boolean isSpecialCase(Block block) {
-		if (block == null)
-			return false;
+	
+	private boolean isHollowUpDownType(Block block) {
 		Material type = block.getType();
+		// TODO removed stairs here for now because for stairs it depends from which direction they were hit..
+		return isStep(type) || type == Material.CARPET || type == Material.SNOW
+				|| type == Material.DIODE_BLOCK_OFF || type == Material.DIODE_BLOCK_ON 
+				|| type == Material.REDSTONE_COMPARATOR_OFF || type == Material.REDSTONE_COMPARATOR_ON
+				|| type == Material.CAULDRON || type == Material.BED_BLOCK || type == Material.DAYLIGHT_DETECTOR
+				|| type == Material.RAILS || type == Material.DETECTOR_RAIL || type == Material.POWERED_RAIL || type == Material.ACTIVATOR_RAIL
+				|| type == Material.GOLD_PLATE || type == Material.IRON_PLATE || type == Material.STONE_PLATE
+				|| (type == Material.TRAP_DOOR && !(new TrapDoor(type, block.getData()).isOpen()));
+	}
+	
+	private boolean isStep(Material type) {
+		return type == Material.STEP || type == Material.WOOD_STEP;
+	}
+	
+	private boolean isStair(Material type) {
+		return type == Material.WOOD_STAIRS || type == Material.SANDSTONE_STAIRS 
+		|| type == Material.COBBLESTONE_STAIRS || type == Material.BRICK_STAIRS 
+		|| type == Material.QUARTZ_STAIRS || type == Material.BIRCH_WOOD_STAIRS 
+		|| type == Material.NETHER_BRICK_STAIRS || type == Material.SMOOTH_STAIRS
+		|| type == Material.SPRUCE_WOOD_STAIRS;
+	}
+
+	private boolean isWoodenTrigger(Material type) {
 		return type == Material.WOOD_BUTTON || type == Material.WOOD_PLATE;
 	}
 }
