@@ -165,7 +165,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 					return;
 
 				// to make sure, that previousBlock and nextBlock are not the same block
-				while (blockIterator.hasNext() && (nextBlock.getType() == Material.AIR || nextBlock.equals(hitBlock))) {
+				while (blockIterator.hasNext() && (nextBlock.getType() == Material.AIR || nextBlock.isLiquid() || nextBlock.equals(hitBlock))) {
 					previousBlock = nextBlock;
 					nextBlock = blockIterator.next();
 					if (isWoodenTrigger(nextBlock.getType()))
