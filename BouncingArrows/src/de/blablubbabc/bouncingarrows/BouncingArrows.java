@@ -21,6 +21,8 @@ import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.material.TrapDoor;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.projectiles.BlockProjectileSource;
+import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.BlockIterator;
 import org.bukkit.util.Vector;
 
@@ -43,7 +45,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 				if (player.hasPermission("bouncingarrows.use")) {
 					projectile.setMetadata("bouncing", new FixedMetadataValue(this, true));
 				}
-				
+
 				if (player.hasPermission("bouncingarrows.aim")) {
 					Projectile projectileP = (Projectile) projectile;
 					LivingEntity target = findTarget(projectileP);
@@ -55,7 +57,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			}
 		}
 	}
-	
+
 	// thrown snowballs
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onProjectileLaunch(ProjectileLaunchEvent event) {
@@ -70,8 +72,17 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 	}
 
 	private LivingEntity findTarget(Projectile projectile) {
+		ProjectileSource source = projectile.getShooter();
+		LivingEntity shooterEntity = null;
+		Block shooterBlock = null;
+
+		if (source instanceof LivingEntity) {
+			shooterEntity = (LivingEntity) source;
+		} else if (source instanceof BlockProjectileSource) {
+			shooterBlock = ((BlockProjectileSource) source).getBlock();
+		}
+
 		double radius = 150.0D;
-		LivingEntity shooter = projectile.getShooter();
 		Location projectileLocation = projectile.getLocation();
 		Vector projectileDirection = projectile.getVelocity().normalize();
 		Vector projectileVector = projectileLocation.toVector();
@@ -79,14 +90,14 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 		LivingEntity target = null;
 		double minDotProduct = Double.MIN_VALUE;
 		for (Entity entity : projectile.getNearbyEntities(radius, radius, radius)) {
-			if (entity instanceof LivingEntity && !entity.equals(shooter)) {
+			if (entity instanceof LivingEntity && !entity.equals(shooterEntity)) {
 				LivingEntity living = (LivingEntity) entity;
 				Location newTargetLocation = living.getEyeLocation();
 
 				// check angle to target:
 				Vector toTarget = newTargetLocation.toVector().subtract(projectileVector).normalize();
 				double dotProduct = toTarget.dot(projectileDirection);
-				if (dotProduct > 0.97D && shooter.hasLineOfSight(living) && (target == null || dotProduct > minDotProduct)) {
+				if (dotProduct > 0.97D && (shooterEntity != null ? shooterEntity.hasLineOfSight(living) : this.canSeeBlock(living, shooterBlock, (int) radius)) && (target == null || dotProduct > minDotProduct)) {
 					target = living;
 					minDotProduct = dotProduct;
 				}
@@ -96,12 +107,25 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 		return target;
 	}
 
+	private boolean canSeeBlock(LivingEntity entity, Block block, int maxDistance) {
+		Location blockLocation = block.getLocation();
+		Vector blockVector = blockLocation.toVector();
+		Location eyeLocation = entity.getEyeLocation();
+		Vector dir = (eyeLocation.toVector().subtract(blockVector)).normalize();
+		BlockIterator iterator = new BlockIterator(blockLocation.getWorld(), blockVector, dir, 0, maxDistance);
+
+		while (iterator.hasNext()) {
+			Block b = iterator.next();
+			if (b.getType() != Material.AIR && !b.equals(block)) return false;
+		}
+		return true;
+	}
+
 	private void aimAtTarget(final Projectile projectile, final LivingEntity target, final double speed) {
 		Location projectileLocation = projectile.getLocation();
 		Location targetLocation = target.getEyeLocation();
 		// validate target:
-		if (target.isDead() || !target.isValid() || !targetLocation.getWorld().getName().equals(projectileLocation.getWorld().getName())
-				|| targetLocation.distanceSquared(projectileLocation) > 25000) {
+		if (target.isDead() || !target.isValid() || !targetLocation.getWorld().getName().equals(projectileLocation.getWorld().getName()) || targetLocation.distanceSquared(projectileLocation) > 25000) {
 			return;
 		}
 
@@ -116,20 +140,18 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 
 			@Override
 			public void run() {
-				if (!projectile.isDead() && projectile.isValid() && !projectile.isOnGround() && projectile.getTicksLived() < 600)
-					aimAtTarget(projectile, target, speed);
+				if (!projectile.isDead() && projectile.isValid() && !projectile.isOnGround() && projectile.getTicksLived() < 600) aimAtTarget(projectile, target, speed);
 			}
 		}, 1L);
 	}
 
 	private void playEffect(final Entity entity) {
-		ParticleEffect.HEART.play(entity.getLocation(), 0, 0, 0, 1, 10);
+		ParticleEffect.HEART.display(entity.getLocation(), 0, 0, 0, 1, 10);
 		getServer().getScheduler().runTaskLater(this, new Runnable() {
 
 			@Override
 			public void run() {
-				if (entity.isDead() || !entity.isValid() || entity.isOnGround())
-					return;
+				if (entity.isDead() || !entity.isValid() || entity.isOnGround()) return;
 				playEffect(entity);
 			}
 		}, 2L);
@@ -138,7 +160,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onProjectileHitEvent(ProjectileHitEvent event) {
 		Projectile projectile = event.getEntity();
-		LivingEntity shooter = projectile.getShooter();
+		ProjectileSource source = projectile.getShooter();
 		EntityType projectileType = projectile.getType();
 
 		if (projectile.hasMetadata("bouncing")) {
@@ -153,7 +175,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			Block hitBlock = arrowLocation.getBlock();
 
 			BlockFace blockFace = BlockFace.UP;
-			
+
 			// special cases:
 			if (isWoodenTrigger(hitBlock.getType())) return;
 			if (!isHollowUpDownType(hitBlock)) {
@@ -161,20 +183,18 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 
 				Block previousBlock = hitBlock;
 				Block nextBlock = blockIterator.next();
-				if (isWoodenTrigger(nextBlock.getType()))
-					return;
+				if (isWoodenTrigger(nextBlock.getType())) return;
 
 				// to make sure, that previousBlock and nextBlock are not the same block
 				while (blockIterator.hasNext() && (nextBlock.getType() == Material.AIR || nextBlock.isLiquid() || nextBlock.equals(hitBlock))) {
 					previousBlock = nextBlock;
 					nextBlock = blockIterator.next();
-					if (isWoodenTrigger(nextBlock.getType()))
-						return;
+					if (isWoodenTrigger(nextBlock.getType())) return;
 				}
-				
-				//direction
+
+				// direction
 				blockFace = nextBlock.getFace(previousBlock);
-				
+
 			}
 
 			if (blockFace != null) {
@@ -182,8 +202,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 					blockFace = BlockFace.UP;
 				}
 
-				if (isWoodenTrigger(hitBlock.getRelative(blockFace).getType()))
-					return;
+				if (isWoodenTrigger(hitBlock.getRelative(blockFace).getType())) return;
 
 				Vector mirrorDirection = new Vector(blockFace.getModX(), blockFace.getModY(), blockFace.getModZ());
 				double dotProduct = arrowVelocity.dot(mirrorDirection);
@@ -196,14 +215,14 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 				if (projectileType == EntityType.ARROW) {
 					// spawn with slight spray:
 					newProjectile = projectile.getWorld().spawnArrow(arrowLocation, arrowVelocity.subtract(mirrorDirection), (float) speed, 4.0F);
-					
+
 					// make the arrow pickup-able:
-					if (shooter.getType() == EntityType.PLAYER) {
+					if (source instanceof Player) {
 						Field field;
 						try {
 							Object entityArrow = newProjectile.getClass().getMethod("getHandle").invoke(newProjectile);
 							field = entityArrow.getClass().getDeclaredField("fromPlayer");
-							//field.setAccessible(true);
+							// field.setAccessible(true);
 							field.set(entityArrow, 1);
 						} catch (Exception e) {
 							System.out.println("[BouncingArrows] Failed to set the arrow pick-able! StackTrace: ");
@@ -216,7 +235,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 					newProjectile.setVelocity(arrowVelocity.subtract(mirrorDirection).normalize().multiply(speed));
 				}
 
-				newProjectile.setShooter(shooter);
+				newProjectile.setShooter(source);
 				newProjectile.setFireTicks(projectile.getFireTicks());
 				newProjectile.setMetadata("bouncing", new FixedMetadataValue(this, true));
 
@@ -225,29 +244,24 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 			}
 		}
 	}
-	
+
 	private boolean isHollowUpDownType(Block block) {
 		Material type = block.getType();
 		// TODO removed stairs here for now because for stairs it depends from which direction they were hit..
-		return isStep(type) || type == Material.CARPET || type == Material.SNOW
-				|| type == Material.DIODE_BLOCK_OFF || type == Material.DIODE_BLOCK_ON 
-				|| type == Material.REDSTONE_COMPARATOR_OFF || type == Material.REDSTONE_COMPARATOR_ON
-				|| type == Material.CAULDRON || type == Material.BED_BLOCK || type == Material.DAYLIGHT_DETECTOR
-				|| type == Material.RAILS || type == Material.DETECTOR_RAIL || type == Material.POWERED_RAIL || type == Material.ACTIVATOR_RAIL
-				|| type == Material.GOLD_PLATE || type == Material.IRON_PLATE || type == Material.STONE_PLATE
-				|| (type == Material.TRAP_DOOR && !(new TrapDoor(type, block.getData()).isOpen()));
+		return isStep(type) || type == Material.CARPET || type == Material.SNOW || type == Material.DIODE_BLOCK_OFF 
+							|| type == Material.DIODE_BLOCK_ON || type == Material.REDSTONE_COMPARATOR_OFF || type == Material.REDSTONE_COMPARATOR_ON 
+							|| type == Material.CAULDRON || type == Material.BED_BLOCK || type == Material.DAYLIGHT_DETECTOR 
+							|| type == Material.RAILS || type == Material.DETECTOR_RAIL || type == Material.POWERED_RAIL 
+							|| type == Material.ACTIVATOR_RAIL || type == Material.GOLD_PLATE || type == Material.IRON_PLATE 
+							|| type == Material.STONE_PLATE || (type == Material.TRAP_DOOR && !(new TrapDoor(type, block.getData()).isOpen()));
 	}
-	
+
 	private boolean isStep(Material type) {
 		return type == Material.STEP || type == Material.WOOD_STEP;
 	}
-	
+
 	private boolean isStair(Material type) {
-		return type == Material.WOOD_STAIRS || type == Material.SANDSTONE_STAIRS 
-		|| type == Material.COBBLESTONE_STAIRS || type == Material.BRICK_STAIRS 
-		|| type == Material.QUARTZ_STAIRS || type == Material.BIRCH_WOOD_STAIRS 
-		|| type == Material.NETHER_BRICK_STAIRS || type == Material.SMOOTH_STAIRS
-		|| type == Material.SPRUCE_WOOD_STAIRS;
+		return type == Material.WOOD_STAIRS || type == Material.SANDSTONE_STAIRS || type == Material.COBBLESTONE_STAIRS || type == Material.BRICK_STAIRS || type == Material.QUARTZ_STAIRS || type == Material.BIRCH_WOOD_STAIRS || type == Material.NETHER_BRICK_STAIRS || type == Material.SMOOTH_STAIRS || type == Material.SPRUCE_WOOD_STAIRS;
 	}
 
 	private boolean isWoodenTrigger(Material type) {
