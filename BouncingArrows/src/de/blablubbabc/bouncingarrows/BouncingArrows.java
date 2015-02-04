@@ -146,7 +146,7 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 	}
 
 	private void playEffect(final Entity entity) {
-		ParticleEffect.HEART.display(entity.getLocation(), 0, 0, 0, 1, 10);
+		ParticleEffect.HEART.display(0.0F, 0.0F, 0.0F, 0.0F, 1, entity.getLocation(), 256);
 		getServer().getScheduler().runTaskLater(this, new Runnable() {
 
 			@Override
@@ -248,12 +248,12 @@ public class BouncingArrows extends JavaPlugin implements Listener {
 	private boolean isHollowUpDownType(Block block) {
 		Material type = block.getType();
 		// TODO removed stairs here for now because for stairs it depends from which direction they were hit..
-		return isStep(type) || type == Material.CARPET || type == Material.SNOW || type == Material.DIODE_BLOCK_OFF 
-							|| type == Material.DIODE_BLOCK_ON || type == Material.REDSTONE_COMPARATOR_OFF || type == Material.REDSTONE_COMPARATOR_ON 
-							|| type == Material.CAULDRON || type == Material.BED_BLOCK || type == Material.DAYLIGHT_DETECTOR 
-							|| type == Material.RAILS || type == Material.DETECTOR_RAIL || type == Material.POWERED_RAIL 
-							|| type == Material.ACTIVATOR_RAIL || type == Material.GOLD_PLATE || type == Material.IRON_PLATE 
-							|| type == Material.STONE_PLATE || (type == Material.TRAP_DOOR && !(new TrapDoor(type, block.getData()).isOpen()));
+		return isStep(type) || type == Material.CARPET || type == Material.SNOW || type == Material.DIODE_BLOCK_OFF
+				|| type == Material.DIODE_BLOCK_ON || type == Material.REDSTONE_COMPARATOR_OFF || type == Material.REDSTONE_COMPARATOR_ON
+				|| type == Material.CAULDRON || type == Material.BED_BLOCK || type == Material.DAYLIGHT_DETECTOR
+				|| type == Material.RAILS || type == Material.DETECTOR_RAIL || type == Material.POWERED_RAIL
+				|| type == Material.ACTIVATOR_RAIL || type == Material.GOLD_PLATE || type == Material.IRON_PLATE
+				|| type == Material.STONE_PLATE || (type == Material.TRAP_DOOR && !(new TrapDoor(type, block.getData()).isOpen()));
 	}
 
 	private boolean isStep(Material type) {

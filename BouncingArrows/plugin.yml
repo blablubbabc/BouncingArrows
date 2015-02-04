@@ -1,6 +1,6 @@
 name: BouncingArrows
 main: de.blablubbabc.bouncingarrows.BouncingArrows
-version: 1.1
+version: 1.2
 author: blablubbabc
 description: Makes arrows bounce (and snowballs)! Also includes some sort of 'bow aimbot' / homing arrows.
 permissions:
